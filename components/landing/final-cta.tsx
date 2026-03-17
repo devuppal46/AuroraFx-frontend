@@ -8,7 +8,7 @@ export function FinalCTA() {
   const shouldReduceMotion = useReducedMotion()
 
   return (
-    <section className="py-16 lg:py-24 px-4 sm:px-6 lg:px-8">
+    <section className="py-16 lg:py-24 px-4 sm:px-6 lg:px-8 border-t border-border">
       <div
         className="relative max-w-5xl mx-auto bg-background rounded-3xl overflow-hidden py-16 lg:py-24 px-6 sm:px-12"
         style={{

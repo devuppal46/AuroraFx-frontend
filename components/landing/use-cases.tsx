@@ -53,7 +53,7 @@ export function UseCases() {
   const shouldReduceMotion = useReducedMotion()
 
   return (
-    <section id="features" className="relative py-12 sm:py-20 overflow-hidden">
+    <section id="use-cases" className="relative py-12 sm:py-20 overflow-hidden border-t border-border">
       <div
         className="absolute inset-0 -z-10 bg-primary/25"
         style={{

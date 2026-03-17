@@ -1,13 +1,13 @@
-import { Navbar } from "@/components/navbar"
-import { Hero } from "@/components/hero"
-import { VideoGallery } from "@/components/video-gallery"
-import { HowItWorks } from "@/components/how-it-works"
-import { UseCases } from "@/components/use-cases"
-import { Testimonials } from "@/components/testimonials"
-import { Pricing } from "@/components/pricing"
-import { FAQ } from "@/components/faq"
-import { FinalCTA } from "@/components/final-cta"
-import { Footer } from "@/components/footer"
+import { Navbar } from "@/components/landing/navbar"
+import { Hero } from "@/components/landing/hero"
+import { Features } from "@/components/landing/features"
+import { HowItWorks } from "@/components/landing/how-it-works"
+import { UseCases } from "@/components/landing/use-cases"
+import { Testimonials } from "@/components/landing/testimonials"
+import { Pricing } from "@/components/landing/pricing"
+import { FAQ } from "@/components/landing/faq"
+import { FinalCTA } from "@/components/landing/final-cta"
+import { Footer } from "@/components/landing/footer"
 
 export default function Home() {
   return (
@@ -24,7 +24,7 @@ export default function Home() {
       <Navbar />
 
       <Hero />
-      <VideoGallery />
+      <Features />
       <HowItWorks />
       <UseCases />
       <Testimonials />

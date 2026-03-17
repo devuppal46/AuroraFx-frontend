@@ -122,11 +122,11 @@ const demos = [
   },
 ]
 
-export function VideoGallery() {
+export function Features() {
   const shouldReduceMotion = useReducedMotion()
 
   return (
-    <section className="relative py-16 sm:py-24 lg:py-32 bg-black">
+    <section id="features" className="relative py-16 sm:py-24 lg:py-32 bg-black border-t border-border">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={shouldReduceMotion ? {} : { opacity: 0, y: 20 }}

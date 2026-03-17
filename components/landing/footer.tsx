@@ -82,10 +82,10 @@ export function Footer() {
         </div>
 
         {/* Bottom section */}
-        <div className="mt-10 pt-6 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="mt-10 pt-6 border-t border-border flex flex-col-reverse md:flex-row items-center justify-between gap-6 md:gap-8">
 
           {/* Social Icons */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-center md:justify-start gap-5 sm:gap-6">
             <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
               <span className="sr-only">Twitter</span>
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
