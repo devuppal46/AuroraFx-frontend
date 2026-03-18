@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Menu,
@@ -10,6 +11,7 @@ import {
   Zap,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useUser } from "@/context/UserContext"
 
 const navLinks = [
   { href: "#features", label: "Features" },
@@ -19,6 +21,8 @@ const navLinks = [
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const { user, logout, isLoading } = useUser()
+  const router = useRouter()
 
   useEffect(() => {
     if (mobileMenuOpen) {
@@ -61,13 +65,29 @@ export function Navbar() {
 
           {/* Desktop Buttons - hidden below lg */}
           <div className="hidden lg:flex items-center gap-3">
-            <Button variant="ghost" size="sm" rounded="full">
-              Log in
-            </Button>
-            <Button size="sm" rounded="full" className="gap-1.5">
-              Get Started
-              <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
-            </Button>
+            {!isLoading && (
+              user ? (
+                <>
+                  <Button variant="ghost" size="sm" rounded="full" onClick={() => logout()}>
+                    Log out
+                  </Button>
+                  <Button size="sm" rounded="full" className="gap-1.5" onClick={() => router.push('/dashboard')}>
+                    Dashboard
+                    <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="ghost" size="sm" rounded="full" onClick={() => router.push('/login')}>
+                    Log in
+                  </Button>
+                  <Button size="sm" rounded="full" className="gap-1.5" onClick={() => router.push('/signup')}>
+                    Get Started
+                    <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                  </Button>
+                </>
+              )
+            )}
           </div>
 
           {/* Mobile Menu Button - visible below lg */}
@@ -136,12 +156,27 @@ export function Navbar() {
               </div>
 
               <div className="px-6 py-4 border-t border-border/50 bg-background flex flex-col gap-3">
-                <Button variant="ghost" rounded="lg" className="justify-center text-base py-6 w-full">
-                  Log in
-                </Button>
-                <Button rounded="full" className="py-6 text-base w-full">
-                  Get Started
-                </Button>
+                {!isLoading && (
+                  user ? (
+                    <>
+                      <Button variant="ghost" rounded="lg" className="justify-center text-base py-6 w-full" onClick={() => { logout(); setMobileMenuOpen(false); }}>
+                        Log out
+                      </Button>
+                      <Button rounded="full" className="py-6 text-base w-full" onClick={() => { router.push('/dashboard'); setMobileMenuOpen(false); }}>
+                        Dashboard
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="ghost" rounded="lg" className="justify-center text-base py-6 w-full" onClick={() => { router.push('/login'); setMobileMenuOpen(false); }}>
+                        Log in
+                      </Button>
+                      <Button rounded="full" className="py-6 text-base w-full" onClick={() => { router.push('/signup'); setMobileMenuOpen(false); }}>
+                        Get Started
+                      </Button>
+                    </>
+                  )
+                )}
               </div>
             </motion.div>
           )}
