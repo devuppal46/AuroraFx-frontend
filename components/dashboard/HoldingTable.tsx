@@ -32,30 +32,23 @@ const HoldingCard = ({ h, index }: { h: any; index: number }) => {
         </div>
         <span className="text-white/60 text-sm">${h.value.toFixed(2)}</span>
       </div>
-
+      
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
           <div className="text-white/40 text-xs mb-1">P/L ($)</div>
-          <div
-            className={`font-mono flex items-center gap-1 ${isPositive ? "text-emerald-400" : "text-rose-400"}`}
-          >
+          <div className={`font-mono flex items-center gap-1 ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
             {isPositive ? (
               <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
             ) : (
               <TrendingDown className="w-3.5 h-3.5" aria-hidden="true" />
             )}
-            <span className="sr-only">
-              {isPositive ? "Profit" : "Loss"}:
-            </span>
-            {isPositive ? "+" : ""}
-            {h.unrealizedPnL.toFixed(2)}
+            <span className="sr-only">{isPositive ? "Profit" : "Loss"}:</span>
+            {isPositive ? "+" : ""}{h.unrealizedPnL.toFixed(2)}
           </div>
         </div>
         <div>
           <div className="text-white/40 text-xs mb-1">P/L (%)</div>
-          <div
-            className={`font-mono ${parseFloat(plPct) >= 0 ? "text-emerald-400" : "text-rose-400"}`}
-          >
+          <div className={`font-mono ${parseFloat(plPct) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
             {plPct}%
           </div>
         </div>
@@ -75,11 +68,7 @@ const HoldingCard = ({ h, index }: { h: any; index: number }) => {
   );
 };
 
-export default function HoldingsTable({
-  holdings = [],
-}: {
-  holdings?: any[];
-}) {
+export default function HoldingTable({ holdings = [] }: { holdings?: any[] }) {
   const itemsPerPage = 10;
   const [page, setPage] = useState(0);
 
@@ -102,21 +91,11 @@ export default function HoldingsTable({
         <table className="min-w-full text-sm">
           <thead>
             <tr className="text-white/60">
-              <th className="text-left font-normal px-4 md:px-5 py-3">
-                Name
-              </th>
-              <th className="text-left font-normal px-4 md:px-5 py-3">
-                Value
-              </th>
-              <th className="text-left font-normal px-4 md:px-5 py-3">
-                P/L ($)
-              </th>
-              <th className="text-left font-normal px-4 md:px-5 py-3">
-                P/L (%)
-              </th>
-              <th className="text-left font-normal px-4 md:px-5 py-3">
-                24H Chart
-              </th>
+              <th className="text-left font-normal px-4 md:px-5 py-3">Name</th>
+              <th className="text-left font-normal px-4 md:px-5 py-3">Value</th>
+              <th className="text-left font-normal px-4 md:px-5 py-3">P/L ($)</th>
+              <th className="text-left font-normal px-4 md:px-5 py-3">P/L (%)</th>
+              <th className="text-left font-normal px-4 md:px-5 py-3">24H Chart</th>
             </tr>
           </thead>
           <tbody>
@@ -128,16 +107,11 @@ export default function HoldingsTable({
                       <BarChart3 className="w-8 h-8 text-emerald-400" />
                     </div>
                     <div>
-                      <p className="text-white/90 font-semibold text-lg">
-                        No open positions
-                      </p>
-                      <p className="text-sm text-white/50 max-w-sm mt-1">
-                        Start trading in simulation mode to see your positions
-                        here.
-                      </p>
+                      <p className="text-white/90 font-semibold text-lg">No open positions</p>
+                      <p className="text-sm text-white/50 max-w-sm mt-1">Start trading in simulation mode to see your positions here.</p>
                     </div>
-                    <Link
-                      href="/simulation"
+                    <Link 
+                      href="/simulation" 
                       className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition-all duration-200 font-medium text-sm group mt-2"
                     >
                       <Play className="w-4 h-4" />
@@ -151,10 +125,7 @@ export default function HoldingsTable({
               currentItems.map((h, i) => {
                 const plPct =
                   h.avgPrice > 0
-                    ? (
-                        (h.unrealizedPnL / (h.avgPrice * h.qty)) *
-                        100
-                      ).toFixed(2)
+                    ? ((h.unrealizedPnL / (h.avgPrice * h.qty)) * 100).toFixed(2)
                     : "0";
                 return (
                   <tr key={i} className="border-t border-white/5 text-white/80">
@@ -173,39 +144,23 @@ export default function HoldingsTable({
                       />
                       <span className="text-white/90">{h.symbol}</span>
                     </td>
-                    <td className="px-4 md:px-5 py-3">
-                      ${h.value.toFixed(2)}
-                    </td>
+                    <td className="px-4 md:px-5 py-3">${h.value.toFixed(2)}</td>
                     <td
-                      className={`px-4 md:px-5 py-3 ${
-                        h.unrealizedPnL >= 0
-                          ? "text-emerald-400"
-                          : "text-rose-400"
-                      }`}
+                      className={`px-4 md:px-5 py-3 ${h.unrealizedPnL >= 0 ? "text-emerald-400" : "text-rose-400"
+                        }`}
                     >
                       {h.unrealizedPnL >= 0 ? (
-                        <TrendingUp
-                          className="w-3.5 h-3.5 inline mr-1"
-                          aria-hidden="true"
-                        />
+                        <TrendingUp className="w-3.5 h-3.5 inline mr-1" aria-hidden="true" />
                       ) : (
-                        <TrendingDown
-                          className="w-3.5 h-3.5 inline mr-1"
-                          aria-hidden="true"
-                        />
+                        <TrendingDown className="w-3.5 h-3.5 inline mr-1" aria-hidden="true" />
                       )}
-                      <span className="sr-only">
-                        {h.unrealizedPnL >= 0 ? "Profit" : "Loss"}:
-                      </span>
+                      <span className="sr-only">{h.unrealizedPnL >= 0 ? "Profit" : "Loss"}:</span>
                       {h.unrealizedPnL >= 0 ? "+" : ""}
                       {h.unrealizedPnL.toFixed(2)}
                     </td>
                     <td
-                      className={`px-4 md:px-5 py-3 ${
-                        parseFloat(plPct) >= 0
-                          ? "text-emerald-400"
-                          : "text-rose-400"
-                      }`}
+                      className={`px-4 md:px-5 py-3 ${parseFloat(plPct) >= 0 ? "text-emerald-400" : "text-rose-400"
+                        }`}
                     >
                       {plPct}%
                     </td>
@@ -213,13 +168,9 @@ export default function HoldingsTable({
                       <svg viewBox="0 0 120 24" className="h-6 w-28">
                         <polyline
                           fill="none"
-                          stroke={
-                            parseFloat(plPct) >= 0 ? "#22c55e" : "#f43f5e"
-                          }
+                          stroke={parseFloat(plPct) >= 0 ? "#22c55e" : "#f43f5e"}
                           strokeWidth="2"
-                          points={
-                            "0,18 20,10 40,14 60,8 80,12 100,6 120,10"
-                          }
+                          points={"0,18 20,10 40,14 60,8 80,12 100,6 120,10"}
                         />
                       </svg>
                     </td>
@@ -240,8 +191,8 @@ export default function HoldingsTable({
                 <BarChart3 className="w-7 h-7 text-emerald-400" />
               </div>
               <p className="text-white/80 font-medium">No open positions</p>
-              <Link
-                href="/simulation"
+              <Link 
+                href="/simulation" 
                 className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-all duration-200 font-medium text-sm"
               >
                 <Play className="w-4 h-4" />
@@ -250,7 +201,9 @@ export default function HoldingsTable({
             </div>
           </div>
         ) : (
-          currentItems.map((h, i) => <HoldingCard key={i} h={h} index={i} />)
+          currentItems.map((h, i) => (
+            <HoldingCard key={i} h={h} index={i} />
+          ))
         )}
       </div>
 

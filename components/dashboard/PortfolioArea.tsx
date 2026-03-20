@@ -11,7 +11,7 @@ import {
   CartesianGrid,
 } from "recharts";
 
-export default function PortfolioRechart({
+export default function PortfolioArea({
   title = "Portfolio",
   summary,
   data = [],
@@ -30,15 +30,18 @@ export default function PortfolioRechart({
 }) {
   const stats = summary?.statistics;
 
+  // Value + PnL
   const totalValue = stats ? `$${stats.currentBalance.toFixed(2)}` : "$0.00";
   const totalPnL = (stats?.realizedPnL ?? 0) + (stats?.unrealizedPnL ?? 0);
   const changeText = `${totalPnL >= 0 ? "+" : ""}${totalPnL.toFixed(2)} PnL`;
   const changeColor = totalPnL >= 0 ? "text-emerald-400" : "text-rose-400";
 
+  // Guard empty chart data
   const chartData = Array.isArray(data) && data.length > 0 ? data : [{ t: "", price: 0, pnl: 0 }];
 
   return (
     <GlassCard className="p-4 md:p-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-white/70 text-sm">{title}</p>
@@ -73,8 +76,9 @@ export default function PortfolioRechart({
           )}
         </div>
 
+        {/* Period selector */}
         <div className="flex gap-2 text-[11px] text-white/60">
-          {periods.map((p) => {
+          {periods.map((p: string) => {
             const active = p === activePeriod;
             return (
               <button
@@ -93,6 +97,7 @@ export default function PortfolioRechart({
         </div>
       </div>
 
+      {/* Chart */}
       <div className="mt-4 h-64 rounded-lg bg-black/25 border border-white/10 overflow-hidden">
         <ResponsiveContainer width="100%" height={height}>
           <AreaChart
@@ -126,6 +131,7 @@ export default function PortfolioRechart({
               }}
             />
 
+            {/* Price curve */}
             <Area
               type="monotone"
               dataKey="price"
@@ -135,6 +141,7 @@ export default function PortfolioRechart({
               activeDot={{ r: 3, fill: "#22c55e" }}
               dot={false}
             />
+            {/* PnL curve */}
             <Area
               type="monotone"
               dataKey="pnl"

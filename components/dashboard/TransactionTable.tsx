@@ -4,6 +4,7 @@ import GlassCard from "./GlassCard";
 import { History, TrendingUp, TrendingDown, ArrowRight, Compass } from "lucide-react";
 import Link from "next/link";
 
+// Mobile Card Component
 const TransactionCard = ({ t }: { t: any }) => {
   const isBuy = t.side === "BUY";
   const isPositive = t.pnl >= 0;
@@ -59,7 +60,7 @@ const TransactionCard = ({ t }: { t: any }) => {
   );
 };
 
-export default function TransactionsTable({ transactions }: { transactions: any[] }) {
+export default function TransactionTable({ transactions = [] }: { transactions?: any[] }) {
   const itemsPerPage = 10;
   const [page, setPage] = useState(0);
 
@@ -73,10 +74,12 @@ export default function TransactionsTable({ transactions }: { transactions: any[
 
   return (
     <GlassCard className="p-0">
+      {/* Header */}
       <div className="px-4 md:px-5 py-3 border-b border-white/10 flex items-center justify-between">
         <h3 className="text-white/90 font-medium">My transactions</h3>
       </div>
 
+      {/* Desktop Table */}
       <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
@@ -154,6 +157,7 @@ export default function TransactionsTable({ transactions }: { transactions: any[
         </table>
       </div>
 
+      {/* Mobile Cards */}
       <div className="md:hidden p-4">
         {currentItems.length === 0 ? (
           <div className="text-center py-10 px-4">
@@ -178,6 +182,7 @@ export default function TransactionsTable({ transactions }: { transactions: any[
         )}
       </div>
 
+      {/* Pagination Footer */}
       <div className="flex items-center justify-between px-4 md:px-5 py-2 text-[11px] text-white/50 border-t border-white/10">
         <span>
           Items per page {itemsPerPage} • {start + 1}–
@@ -196,7 +201,7 @@ export default function TransactionsTable({ transactions }: { transactions: any[
           </span>
           <button
             onClick={handleNext}
-            disabled={page >= totalPages - 1}
+            disabled={page >= totalPages - 1 || totalPages === 0}
             className="px-2 py-1 bg-white/10 rounded disabled:opacity-30"
           >
             Next

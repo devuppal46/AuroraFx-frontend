@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { UserProvider } from "@/context/UserContext"
 import RedirectManager from "@/components/auth/RedirectManager"
+import QueryProvider from "@/components/QueryProvider"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
@@ -51,11 +52,13 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${_ptMono.variable}`}>
       <body className="font-sans antialiased min-h-screen">
-        <UserProvider>
-          <RedirectManager>
-            {children}
-          </RedirectManager>
-        </UserProvider>
+        <QueryProvider>
+          <UserProvider>
+            <RedirectManager>
+              {children}
+            </RedirectManager>
+          </UserProvider>
+        </QueryProvider>
         <Analytics />
       </body>
     </html>

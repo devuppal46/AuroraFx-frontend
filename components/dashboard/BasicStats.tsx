@@ -1,107 +1,78 @@
 "use client";
 import React from "react";
+import { TrendingUp, TrendingDown, DollarSign, Activity } from "lucide-react";
 
-export default function BasicStats({ summary }: { summary: any }) {
+export default function BasicStats({ summary }: { summary?: any }) {
   if (!summary) return null;
 
   const { statistics } = summary;
+  if (!statistics) return null;
+
   const { startingBalance, currentBalance, realizedPnL, unrealizedPnL } = statistics;
 
   const stats = [
     {
       label: "Starting Balance",
       value: `$${startingBalance.toFixed(2)}`,
-      percent: 100,
-      color: "#22c55e",
+      sub: "Initial capital",
+      color: "text-white/80",
+      accent: "from-white/10 to-white/5",
+      icon: DollarSign,
+      positive: true,
     },
     {
       label: "Current Balance",
       value: `$${currentBalance.toFixed(2)}`,
-      percent: Math.min((currentBalance / startingBalance) * 100, 200),
-      color: "#06b6d4",
+      sub: `${((currentBalance / startingBalance - 1) * 100).toFixed(2)}% total return`,
+      color: currentBalance >= startingBalance ? "text-emerald-400" : "text-rose-400",
+      accent: currentBalance >= startingBalance ? "from-emerald-500/15 to-emerald-500/5" : "from-rose-500/15 to-rose-500/5",
+      icon: currentBalance >= startingBalance ? TrendingUp : TrendingDown,
+      positive: currentBalance >= startingBalance,
     },
     {
       label: "Realized PnL",
       value: `${realizedPnL >= 0 ? "+" : ""}$${realizedPnL.toFixed(2)}`,
-      percent: Math.min((Math.abs(realizedPnL) / startingBalance) * 100, 200),
-      color: realizedPnL >= 0 ? "#22c55e" : "#dc2626",
+      sub: "Closed positions",
+      color: realizedPnL >= 0 ? "text-emerald-400" : "text-rose-400",
+      accent: realizedPnL >= 0 ? "from-emerald-500/15 to-emerald-500/5" : "from-rose-500/15 to-rose-500/5",
+      icon: realizedPnL >= 0 ? TrendingUp : TrendingDown,
+      positive: realizedPnL >= 0,
     },
     {
       label: "Unrealized PnL",
       value: `${unrealizedPnL >= 0 ? "+" : ""}$${unrealizedPnL.toFixed(2)}`,
-      percent: Math.min((Math.abs(unrealizedPnL) / startingBalance) * 100, 200),
-      color: unrealizedPnL >= 0 ? "#06b6d4" : "#dc2626",
+      sub: "Open positions",
+      color: unrealizedPnL >= 0 ? "text-cyan-400" : "text-rose-400",
+      accent: unrealizedPnL >= 0 ? "from-cyan-500/15 to-cyan-500/5" : "from-rose-500/15 to-rose-500/5",
+      icon: unrealizedPnL >= 0 ? Activity : TrendingDown,
+      positive: unrealizedPnL >= 0,
     },
   ];
 
-  const radii = [50, 40, 30, 20];
-
-  const getArcProps = (percent: number, radius: number, color: string, width: number) => {
-    const circumference = 2 * Math.PI * radius;
-    const half = circumference / 2;
-    const progress = (percent / 100) * half;
-    return {
-      stroke: color,
-      strokeWidth: width,
-      fill: "none",
-      strokeDasharray: `${progress} ${half - progress}`,
-      strokeDashoffset: half,
-      strokeLinecap: "round" as const,
-    };
-  };
-
   return (
-    <div className="rounded-2xl p-6 bg-white/5 backdrop-blur-md border border-white/10 shadow-lg shadow-black/20">
-      <h3 className="text-white/90 font-medium">Basic Statistics</h3>
-
-      <div className="mt-5 flex flex-col items-center">
-        <div className="relative w-80 h-40">
-          <svg viewBox="0 0 120 60" className="h-full w-full">
-            {stats.map((_, i) => {
-              const r = radii[i];
-              const circumference = 2 * Math.PI * r;
-              const half = circumference / 2;
-              return (
-                <circle
-                  key={`bg-${i}`}
-                  cx="60"
-                  cy="60"
-                  r={r}
-                  stroke="rgba(255,255,255,0.15)"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeDasharray={`${half} ${half}`}
-                  strokeDashoffset={half}
-                />
-              );
-            })}
-            {stats.map((s, i) => (
-              <circle
-                key={`fg-${i}`}
-                cx="60"
-                cy="60"
-                r={radii[i]}
-                {...getArcProps(s.percent, radii[i], s.color, 5)}
-              />
-            ))}
-          </svg>
-        </div>
-
-        <ul className="mt-4 w-full text-sm space-y-3">
-          {stats.map((s, i) => (
-            <li key={i} className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span
-                  className="h-3 w-3 rounded-full"
-                  style={{ backgroundColor: s.color }}
-                />
-                <span className="text-white/70">{s.label}</span>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {stats.map((s, i) => {
+        const Icon = s.icon;
+        return (
+          <div
+            key={i}
+            className={`bg-gradient-to-br ${s.accent} backdrop-blur-md border border-white/10 rounded-2xl p-5 flex flex-col gap-3 shadow-lg shadow-black/20 hover:border-white/20 transition-colors`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-white/50 text-xs font-medium uppercase tracking-wider">
+                {s.label}
+              </span>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center bg-white/5`}>
+                <Icon className={`w-4 h-4 ${s.color}`} />
               </div>
-              <span className="text-white/90 font-semibold">{s.value}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+            </div>
+            <div>
+              <p className={`text-2xl font-bold font-mono ${s.color}`}>{s.value}</p>
+              <p className="text-white/30 text-xs mt-1">{s.sub}</p>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
