@@ -24,18 +24,18 @@ export function FinalCTA() {
             viewport={{ once: true }}
           >
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-display mb-6 text-foreground">
-              Ready to transform your customer support?
+              Ready to master the global markets?
             </h2>
             <p className="text-lg text-muted-foreground mb-10 max-w-xl mx-auto">
-              Start with 1,000 free conversations. No credit card required.
+              Start your journey with our risk-free simulation. No capital required to learn.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button size="xl" rounded="full" className="gap-2 min-w-[200px]">
-                Get Started Free
+                Start Free Trial
                 <ArrowRight className="w-4 h-4" />
               </Button>
               <Button variant="outline" size="xl" rounded="full" className="gap-2 min-w-[200px] bg-transparent">
-                Talk to Sales
+                View Curriculum
               </Button>
             </div>
           </motion.div>
