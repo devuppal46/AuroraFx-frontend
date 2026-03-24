@@ -109,6 +109,30 @@ const api = {
       body: JSON.stringify(data),
     }),
   },
+
+  // Simulation
+  sim: {
+    getAccount: (datasetId: string, userId?: string) =>
+      apiFetchWrapper(`/sim/account?datasetId=${datasetId}${userId ? `&userId=${userId}` : ''}`),
+    getOrders: (datasetId: string, userId?: string) =>
+      apiFetchWrapper(`/sim/orders?datasetId=${datasetId}${userId ? `&userId=${userId}` : ''}`),
+    createOrder: (data: any) =>
+      apiFetchWrapper('/sim/orders', { method: 'POST', body: JSON.stringify(data) }),
+    cancelOrder: (orderId: string) =>
+      apiFetchWrapper(`/sim/orders/${orderId}/cancel`, { method: 'PATCH' }),
+    closeOrder: (orderId: string) =>
+      apiFetchWrapper(`/sim/orders/${orderId}/close`, { method: 'POST' }),
+    getDatasets: () => apiFetchWrapper('/sim/datasets'),
+    loadDataset: (datasetId: string) =>
+      apiFetchWrapper('/sim/stream/load', { method: 'POST', body: JSON.stringify({ datasetId }) }),
+  },
+
+  // Market Data
+  market: {
+    getBars: (symbol: string, timeframe: string) =>
+      apiFetchWrapper(`/api/bars?symbol=${symbol}&tf=${timeframe}`),
+    getPairs: () => apiFetchWrapper('/pairs'),
+  },
 };
 
 export default api;
