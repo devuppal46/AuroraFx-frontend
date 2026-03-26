@@ -24,6 +24,7 @@ import { useChartData } from "@/hooks/useChartData";
 import { useUser } from "@/context/UserContext";
 import { useAWSWebSocket } from "@/hooks/useDualPipe";
 import { DualPipeProvider } from "@/hooks/useDualPipe";
+import api from "@/lib/api";
 
 // Dynamically import FinancialChart (uses canvas/d3 which need browser APIs)
 const FinancialChart = dynamic(
@@ -217,24 +218,21 @@ function TradingPageContent() {
   ];
 
   useEffect(() => {
-    if (!API_BASE) return;
-    fetch(`${API_BASE}/sim/datasets`, { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
+    api.sim.getDatasets()
+      .then((data: any) => {
         if (data && data.length > 0) {
           const dsId = data[0].id;
           setDatasetId(dsId);
           const name = data[0].name || "";
           const symbol = name.split("_")[0] || "EURUSD";
           setDatasetSymbol(symbol);
-          fetch(`${API_BASE}/sim/stream/load`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ datasetId: dsId }) })
-            .then((r) => r.json())
-            .then((r) => console.log("📊 Sim dataset loaded:", r))
-            .catch((err) => console.error("Failed to load sim dataset:", err));
+          api.sim.loadDataset(dsId)
+            .then((r: any) => console.log("📊 Sim dataset loaded:", r))
+            .catch((err: Error) => console.error("Failed to load sim dataset:", err));
         }
       })
-      .catch((err) => console.error("Failed to fetch datasets:", err));
-  }, [API_BASE]);
+      .catch((err: Error) => console.error("Failed to fetch datasets:", err));
+  }, []);
 
   const handleCancelOrder = async (orderId: string) => {
     try { await cancelOrderMutation.mutateAsync({ orderId, userId, datasetId: datasetId || "", mode: "simulation" }); } catch (err) { console.error("Failed to cancel order:", err); }

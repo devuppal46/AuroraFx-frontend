@@ -184,3 +184,52 @@ export const useCancelOrder = () => {
     },
   });
 };
+
+// ============================================================================
+// Trade History Query
+// ============================================================================
+
+const fetchTradeHistory = async ({
+  userId,
+  datasetId,
+  side,
+  from,
+  to,
+}: {
+  userId: string;
+  datasetId: string;
+  side?: string;
+  from?: string;
+  to?: string;
+}) => {
+  if (!userId || !datasetId) throw new Error('Missing userId or datasetId');
+  const params = new URLSearchParams({ userId, datasetId });
+  if (side && side !== 'ALL') params.set('side', side);
+  if (from) params.set('from', from);
+  if (to) params.set('to', to);
+  const res = await fetch(`${API_BASE}/dashboard/history?${params.toString()}`, {
+    headers: getHeaders(),
+  });
+  if (!res.ok) {
+    const error = await res.text();
+    throw new Error(error || `HTTP ${res.status}`);
+  }
+  return res.json();
+};
+
+export const useTradeHistory = ({
+  userId,
+  datasetId,
+  side,
+  from,
+  to,
+  ...options
+}: any = {}) => {
+  return useQuery({
+    queryKey: ['tradeHistory', userId, datasetId, side, from, to],
+    queryFn: () => fetchTradeHistory({ userId, datasetId, side, from, to }),
+    enabled: !!userId && !!datasetId,
+    staleTime: 30 * 1000,
+    ...options,
+  });
+};

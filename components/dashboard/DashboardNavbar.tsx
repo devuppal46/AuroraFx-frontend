@@ -84,6 +84,9 @@ export function DashboardNavbar({ isRefreshing }: { isRefreshing?: boolean }) {
                 Live
               </span>
             )}
+            <Button variant="ghost" size="sm" rounded="full" onClick={() => router.push("/dashboard/analytics")}>
+              Analytics
+            </Button>
             <Button variant="ghost" size="sm" rounded="full" onClick={() => logout()}>
               Log out
             </Button>
@@ -149,6 +152,9 @@ export function DashboardNavbar({ isRefreshing }: { isRefreshing?: boolean }) {
               </div>
 
               <div className="px-6 py-4 border-t border-border/50 flex flex-col gap-3">
+                <Button variant="ghost" rounded="lg" className="py-6 text-base w-full justify-center" onClick={() => { router.push("/dashboard/analytics"); setMobileMenuOpen(false); }}>
+                  Analytics
+                </Button>
                 <Button variant="ghost" rounded="lg" className="py-6 text-base w-full justify-center" onClick={() => { logout(); setMobileMenuOpen(false); }}>
                   Log out
                 </Button>

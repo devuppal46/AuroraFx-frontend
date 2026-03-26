@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDashboard } from "@/hooks/useQueries";
+import api from "@/lib/api";
 
 import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
 import MarketOverview from "@/components/dashboard/MarketOverview";
@@ -50,16 +51,15 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!user) return;
-    fetch(`${API_BASE}/sim/datasets`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.length > 0) {
+    api.sim.getDatasets()
+      .then((data: any) => {
+        if (data && data.length > 0) {
           setDatasetId(data[0].id);
           localStorage.setItem("datasetId", data[0].id);
         }
       })
-      .catch((e) => console.error("Failed to fetch datasets:", e));
-  }, [API_BASE, user]);
+      .catch((e: Error) => console.error("Failed to fetch datasets:", e));
+  }, [user]);
 
   const authToken =
     typeof window !== "undefined" ? localStorage.getItem("authToken") : null;

@@ -8,7 +8,7 @@ import {
   CurrentCoordinate, BarSeries, CandlestickSeries, LineSeries, MovingAverageTooltip,
   OHLCTooltip, lastVisibleItemBasedZoomAnchor, XAxis, YAxis, CrossHairCursor,
   EdgeIndicator, MouseCoordinateX, MouseCoordinateY, ZoomButtons, withDeviceRatio,
-  withSize, bollingerBand, macd, rsi, stochasticOscillator, forceIndex,
+  bollingerBand, macd, rsi, stochasticOscillator, forceIndex,
   BollingerSeries, BollingerBandTooltip, MACDSeries, MACDTooltip, RSISeries,
   RSITooltip, StochasticSeries, StochasticTooltip, StraightLine, TrendLine,
   FibonacciRetracement, EquidistantChannel,
@@ -147,4 +147,32 @@ const FinancialChart = ({ data: initialData, width, height, ratio, indicators, a
   );
 };
 
-export default withSize({ style: { minHeight: 600 } })(withDeviceRatio()(FinancialChart));
+const FinancialChartWithRatio = withDeviceRatio()(FinancialChart);
+
+const FinancialChartWrapper = (props: any) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 600 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setDimensions((prev) => ({ ...prev, width: entry.contentRect.width }));
+        }
+      }
+    });
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ width: "100%", height: "100%", minHeight: "600px" }}>
+      {dimensions.width > 0 ? (
+        <FinancialChartWithRatio {...props} width={dimensions.width} height={600} />
+      ) : null}
+    </div>
+  );
+};
+
+export default FinancialChartWrapper;
