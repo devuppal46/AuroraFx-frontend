@@ -42,9 +42,10 @@ export async function middleware(request: NextRequest) {
                       request.nextUrl.pathname.startsWith('/forgot-password') ||
                       request.nextUrl.pathname.startsWith('/reset-password')
 
-  const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') || 
+  const isProtectedRoute = request.nextUrl.pathname.startsWith('/dashboard') ||
                            request.nextUrl.pathname.startsWith('/profile') ||
-                           request.nextUrl.pathname.startsWith('/simulation')
+                           request.nextUrl.pathname.startsWith('/simulation') ||
+                           request.nextUrl.pathname.startsWith('/credits')
 
   // Redirect unauthenticated users trying to access protected routes
   if (!user && isProtectedRoute) {

@@ -163,6 +163,70 @@ export const useDashboard = ({ userId, datasetId, ...options }: any = {}) => {
 // Mutation Hooks
 // ============================================================================
 
+// ============================================================================
+// Credits Queries
+// ============================================================================
+
+export interface CreditsBalance {
+  balance: number;
+  userId: string;
+}
+
+export const useCreditsBalance = ({ userId, ...options }: any = {}) => {
+  return useQuery<CreditsBalance>({
+    queryKey: ['credits', 'balance', userId],
+    queryFn: () => api.credits.getBalance(),
+    enabled: !!userId,
+    staleTime: 30 * 1000,
+    ...options,
+  });
+};
+
+export const useCreditsHistory = ({ userId, ...options }: any = {}) => {
+  return useQuery({
+    queryKey: ['credits', 'history', userId],
+    queryFn: () => api.credits.getHistory(),
+    enabled: !!userId,
+    staleTime: 30 * 1000,
+    ...options,
+  });
+};
+
+export const useCreditsReferral = ({ userId, ...options }: any = {}) => {
+  return useQuery({
+    queryKey: ['credits', 'referral', userId],
+    queryFn: () => api.credits.getReferral(),
+    enabled: !!userId,
+    staleTime: 60 * 1000,
+    ...options,
+  });
+};
+
+export const useApplyReferral = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ referralCode, userId }: { referralCode: string; userId: string }) => {
+      const result = await api.credits.applyReferral(referralCode);
+      if (result && !result.success) throw new Error(result.error || 'Failed to apply referral code');
+      return result;
+    },
+    onSuccess: (_data, variables) => {
+      toast.success('Referral code applied! +50 credits');
+      queryClient.invalidateQueries({ queryKey: ['credits', 'balance', variables.userId] });
+      queryClient.invalidateQueries({ queryKey: ['credits', 'history', variables.userId] });
+      queryClient.invalidateQueries({ queryKey: ['credits', 'referral', variables.userId] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to apply referral code');
+    },
+  });
+};
+
+// ============================================================================
+// Mutation Hooks
+// ============================================================================
+
 export const useCancelOrder = () => {
   const queryClient = useQueryClient();
 

@@ -14,7 +14,6 @@ export function FinalCTA() {
         style={{
           border: "1px dashed",
           borderColor: "oklch(0.92 0.16 130 / 0.4)",
-          borderDasharray: "12 8",
         }}
       >
         <div className="relative max-w-3xl mx-auto text-center">

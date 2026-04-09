@@ -133,6 +133,28 @@ const api = {
       apiFetchWrapper(`/api/bars?symbol=${symbol}&tf=${timeframe}`),
     getPairs: () => apiFetchWrapper('/pairs'),
   },
+
+  // Credits
+  credits: {
+    getBalance: () => apiFetchWrapper('/credits/balance'),
+    getHistory: () => apiFetchWrapper('/credits/history'),
+    getReferral: () => apiFetchWrapper('/credits/referral'),
+    applyReferral: (referralCode: string) =>
+      apiFetchWrapper('/credits/referral/apply', {
+        method: 'POST',
+        body: JSON.stringify({ referralCode }),
+      }),
+    calculateDiscount: (packagePrice: number) =>
+      apiFetchWrapper('/credits/calculate-discount', {
+        method: 'POST',
+        body: JSON.stringify({ packagePrice }),
+      }),
+    redeem: (packagePrice: number, packageName: string) =>
+      apiFetchWrapper('/credits/redeem', {
+        method: 'POST',
+        body: JSON.stringify({ packagePrice, packageName }),
+      }),
+  },
 };
 
 export default api;

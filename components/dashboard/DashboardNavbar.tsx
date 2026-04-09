@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Zap, Menu, X, ArrowRight, BarChart3, TrendingUp, LayoutDashboard, History, ChevronRight } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { Zap, Menu, X, ArrowRight, BarChart3, TrendingUp, LayoutDashboard, History, ChevronRight, Coins } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/context/UserContext";
+import { useCreditsBalance } from "@/hooks/useQueries";
 import { Button } from "@/components/ui/button";
 
 const dashboardNavLinks = [
@@ -20,6 +21,8 @@ export function DashboardNavbar({ isRefreshing }: { isRefreshing?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const { user, logout } = useUser();
   const router = useRouter();
+  const pathname = usePathname();
+  const { data: creditsData } = useCreditsBalance({ userId: user?.id });
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -87,6 +90,17 @@ export function DashboardNavbar({ isRefreshing }: { isRefreshing?: boolean }) {
             <Button variant="ghost" size="sm" rounded="full" onClick={() => router.push("/dashboard/analytics")}>
               Analytics
             </Button>
+            <button
+              onClick={() => router.push("/credits")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+                pathname === "/credits"
+                  ? "border-primary/50 bg-primary/15 text-primary"
+                  : "border-white/10 bg-white/5 text-white/70 hover:border-primary/40 hover:text-primary hover:bg-primary/10"
+              }`}
+            >
+              <Coins className="w-3.5 h-3.5" />
+              {creditsData?.balance ?? "–"}
+            </button>
             <Button variant="ghost" size="sm" rounded="full" onClick={() => logout()}>
               Log out
             </Button>
@@ -155,6 +169,16 @@ export function DashboardNavbar({ isRefreshing }: { isRefreshing?: boolean }) {
                 <Button variant="ghost" rounded="lg" className="py-6 text-base w-full justify-center" onClick={() => { router.push("/dashboard/analytics"); setMobileMenuOpen(false); }}>
                   Analytics
                 </Button>
+                <button
+                  onClick={() => { router.push("/credits"); setMobileMenuOpen(false); }}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-white/10 bg-white/5 text-sm text-white/80 hover:border-primary/40 hover:bg-primary/10 hover:text-primary transition-all"
+                >
+                  <span className="flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-primary" />
+                    Aurora Credits
+                  </span>
+                  <span className="font-bold text-primary">{creditsData?.balance ?? "–"}</span>
+                </button>
                 <Button variant="ghost" rounded="lg" className="py-6 text-base w-full justify-center" onClick={() => { logout(); setMobileMenuOpen(false); }}>
                   Log out
                 </Button>
