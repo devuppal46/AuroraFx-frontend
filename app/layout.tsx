@@ -6,6 +6,7 @@ import "./globals.css"
 import { UserProvider } from "@/context/UserContext"
 import RedirectManager from "@/components/auth/RedirectManager"
 import QueryProvider from "@/components/QueryProvider"
+import QueueManager from "@/components/QueueManager"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
@@ -54,9 +55,11 @@ export default function RootLayout({
       <body className="font-sans antialiased min-h-screen">
         <QueryProvider>
           <UserProvider>
-            <RedirectManager>
-              {children}
-            </RedirectManager>
+            <QueueManager>
+              <RedirectManager>
+                {children}
+              </RedirectManager>
+            </QueueManager>
           </UserProvider>
         </QueryProvider>
         <Analytics />

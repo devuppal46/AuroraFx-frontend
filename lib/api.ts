@@ -53,19 +53,28 @@ async function apiFetchWrapper(endpoint: string, options: RequestInit = {}) {
   if (!response.ok) {
     // Handle 401 Unauthorized - redirect to login
     if (response.status === 401 && typeof window !== 'undefined') {
-      // Clear any stale state and redirect to login
       window.location.href = '/login';
       return null;
     }
+
     let errorMessage = `HTTP ${response.status}`;
+    let errorData = null;
+
     try {
       const errorText = await response.text();
-      const errorJson = JSON.parse(errorText);
-      errorMessage = errorJson.message || errorText;
+      errorData = JSON.parse(errorText);
+      errorMessage = errorData.message || errorText;
     } catch (e) {
-      // Error is not JSON or has no message
+      // Error is not JSON
     }
-    throw new Error(errorMessage);
+
+    console.error(`[apiFetchWrapper] Error on endpoint ${endpoint}:`, errorMessage);
+
+    // Create an error object with status and data
+    const error: any = new Error(errorMessage);
+    error.status = response.status;
+    error.data = errorData;
+    throw error;
   }
 
   // Return null for 204 No Content
@@ -123,8 +132,8 @@ const api = {
     closeOrder: (orderId: string) =>
       apiFetchWrapper(`/sim/orders/${orderId}/close`, { method: 'POST' }),
     getDatasets: () => apiFetchWrapper('/sim/datasets'),
-    loadDataset: (datasetId: string) =>
-      apiFetchWrapper('/sim/stream/load', { method: 'POST', body: JSON.stringify({ datasetId }) }),
+    loadDataset: (datasetId: string, userId: string) =>
+      apiFetchWrapper('/sim/stream/load', { method: 'POST', body: JSON.stringify({ datasetId, userId }) }),
   },
 
   // Market Data
@@ -132,6 +141,57 @@ const api = {
     getBars: (symbol: string, timeframe: string) =>
       apiFetchWrapper(`/api/bars?symbol=${symbol}&tf=${timeframe}`),
     getPairs: () => apiFetchWrapper('/pairs'),
+  },
+
+  // Dashboard
+  dashboard: {
+    getSimData: (userId: string, datasetId: string, txLimit: number = 20) =>
+      apiFetchWrapper(`/dashboard/sim?userId=${userId}&datasetId=${datasetId}&txLimit=${txLimit}`),
+    getHistory: (userId: string, datasetId: string, params: any = {}) => {
+      const qs = new URLSearchParams({ userId, datasetId, ...params }).toString();
+      return apiFetchWrapper(`/dashboard/history?${qs}`);
+    },
+  },
+
+  // Credits
+  credits: {
+    getBalance: () => apiFetchWrapper('/credits/balance'),
+    getHistory: () => apiFetchWrapper('/credits/history'),
+    getReferral: () => apiFetchWrapper('/credits/referral'),
+    applyReferral: (referralCode: string) =>
+      apiFetchWrapper('/credits/referral/apply', {
+        method: 'POST',
+        body: JSON.stringify({ referralCode }),
+      }),
+    calculateDiscount: (packagePrice: number) =>
+      apiFetchWrapper('/credits/calculate-discount', {
+        method: 'POST',
+        body: JSON.stringify({ packagePrice }),
+      }),
+    redeem: (packagePrice: number, packageName: string) =>
+      apiFetchWrapper('/credits/redeem', {
+        method: 'POST',
+        body: JSON.stringify({ packagePrice, packageName }),
+      }),
+  },
+
+  // Challenges
+  challenges: {
+    getAll: (userId: string) =>
+      apiFetchWrapper(`/api/challenges?userId=${userId}`),
+    getOne: (challengeId: string) =>
+      apiFetchWrapper(`/api/challenges/${challengeId}`),
+    getOrders: (challengeId: string) =>
+      apiFetchWrapper(`/api/challenges/${challengeId}/orders`),
+    createOrder: (challengeId: string, data: any) =>
+      apiFetchWrapper(`/api/challenges/${challengeId}/orders`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    cancelOrder: (challengeId: string, orderId: string) =>
+      apiFetchWrapper(`/api/challenges/${challengeId}/orders/${orderId}/cancel`, {
+        method: 'PATCH',
+      }),
   },
 };
 

@@ -7,8 +7,10 @@ function MarketOverview() {
   useEffect(() => {
     if (!container.current) return;
 
-    // Clear old script if already mounted
-    container.current.innerHTML = "";
+    // Prevent double-injection in Strict Mode
+    if (container.current.querySelector("script")) {
+      return;
+    }
 
     const scriptWrapper = document.createElement("div");
     scriptWrapper.className = "tradingview-widget-container__widget h-[550px] w-full";
@@ -57,6 +59,9 @@ function MarketOverview() {
     });
 
     scriptWrapper.appendChild(script);
+
+    // Cleanup: do NOT clear innerHTML blindly during strict-mode remount,
+    // as async TradingView initialization may throw iframe contentWindow errors.
   }, []);
 
   return (

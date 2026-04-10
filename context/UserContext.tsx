@@ -6,6 +6,12 @@ import { supabase } from "../lib/supabase";
 import api from "../lib/api";
 import { User, Session } from "@supabase/supabase-js";
 
+// Storage keys
+const TRADING_MODE_KEY = 'aurorafx_trading_mode';
+const ACTIVE_CHALLENGE_KEY = 'aurorafx_active_challenge_id';
+
+type TradingMode = 'simulation' | 'challenge';
+
 interface UserContextType {
   user: User | null;
   setUser: (user: User | null) => void;
@@ -13,6 +19,12 @@ interface UserContextType {
   loginWithGoogle: () => Promise<{ data: any; error: any }>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  isQueued: boolean;
+  queueData: any;
+  checkQueueStatus: () => Promise<void>;
+  tradingMode: TradingMode;
+  activeChallengeId: string | null;
+  switchTradingMode: (mode: TradingMode, challengeId?: string | null) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -20,7 +32,36 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export const UserProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isQueued, setIsQueued] = useState(false);
+  const [queueData, setQueueData] = useState<any>(null);
   const router = useRouter();
+
+  // Trading mode state
+  const [tradingMode, setTradingMode] = useState<TradingMode>(() => {
+    if (typeof window === 'undefined') return 'simulation';
+    return (localStorage.getItem(TRADING_MODE_KEY) as TradingMode) || 'simulation';
+  });
+  const [activeChallengeId, setActiveChallengeId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem(ACTIVE_CHALLENGE_KEY) || null;
+  });
+
+  /**
+   * Switch between simulation and challenge trading modes.
+   */
+  const switchTradingMode = useCallback((mode: TradingMode, challengeId: string | null = null) => {
+    setTradingMode(mode);
+    localStorage.setItem(TRADING_MODE_KEY, mode);
+
+    if (mode === 'challenge' && challengeId) {
+      setActiveChallengeId(challengeId);
+      localStorage.setItem(ACTIVE_CHALLENGE_KEY, challengeId);
+    } else if (mode === 'simulation') {
+      setActiveChallengeId(null);
+      localStorage.removeItem(ACTIVE_CHALLENGE_KEY);
+    }
+    console.log(`🔀 Switched to ${mode} mode${challengeId ? ` (Challenge: ${challengeId})` : ''}`);
+  }, []);
 
   useEffect(() => {
     console.log("👤 UserContext State Update:", { userEmail: user?.email, isLoading });
@@ -47,10 +88,17 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         return false;
       }
     } catch (error: any) {
-      if (error?.message === "Backend API is currently offline") {
+      if (error?.status === 429 || error?.message?.includes("added to the virtual queue")) {
+        console.warn('🚦 Traffic Control: User added to queue');
+        setIsQueued(true);
+        setQueueData(error.data || { position: 'Calculating...', retryAfter: 30 });
+      } else if (error?.message === "Backend API is currently offline") {
         console.warn('⚠️ Backend API is currently offline. Skipping HttpOnly cookie session setup.');
+      } else if (error?.status === 500 || error?.message?.includes('Internal server error') || error?.message?.includes('Missing userId')) {
+        // Backend sync may fail during dev (e.g. missing SimDataset) — non-fatal
+        console.warn('⚠️ Backend auth sync encountered an error (non-fatal):', error?.message);
       } else {
-        console.error('❌ Error setting up cookie session:', error);
+        console.warn('⚠️ Cookie session setup failed:', error?.message || error);
       }
       return false;
     }
@@ -170,11 +218,34 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       setUser(null);
+      // Clear trading mode on logout
+      setTradingMode('simulation');
+      setActiveChallengeId(null);
+      localStorage.removeItem(TRADING_MODE_KEY);
+      localStorage.removeItem(ACTIVE_CHALLENGE_KEY);
       router.push('/login');
     } catch (error) {
       console.error('Error logging out:', error);
     }
   };
+
+  const checkQueueStatus = useCallback(async () => {
+    try {
+      const response = await api.auth.getSession();
+      if (response) {
+        setIsQueued(false);
+        setQueueData(null);
+        // If they had a session, we might want to refresh the user
+        if (response.user) setUser(response.user);
+      }
+    } catch (error: any) {
+      if (error?.status === 429) {
+        setQueueData(error.data);
+      } else {
+        setIsQueued(false);
+      }
+    }
+  }, []);
 
   return (
     <UserContext.Provider
@@ -184,7 +255,13 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         login,
         loginWithGoogle,
         logout,
-        isLoading
+        isLoading,
+        isQueued,
+        queueData,
+        checkQueueStatus,
+        tradingMode,
+        activeChallengeId,
+        switchTradingMode,
       }}>
       {children}
     </UserContext.Provider>

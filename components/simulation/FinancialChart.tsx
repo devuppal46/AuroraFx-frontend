@@ -1,5 +1,5 @@
-"use client";
 // @ts-nocheck
+"use client";
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { format } from "d3-format";
 import { timeFormat } from "d3-time-format";
@@ -8,7 +8,7 @@ import {
   CurrentCoordinate, BarSeries, CandlestickSeries, LineSeries, MovingAverageTooltip,
   OHLCTooltip, lastVisibleItemBasedZoomAnchor, XAxis, YAxis, CrossHairCursor,
   EdgeIndicator, MouseCoordinateX, MouseCoordinateY, ZoomButtons, withDeviceRatio,
-  withSize, bollingerBand, macd, rsi, stochasticOscillator, forceIndex,
+  bollingerBand, macd, rsi, stochasticOscillator, forceIndex,
   BollingerSeries, BollingerBandTooltip, MACDSeries, MACDTooltip, RSISeries,
   RSITooltip, StochasticSeries, StochasticTooltip, StraightLine, TrendLine,
   FibonacciRetracement, EquidistantChannel,
@@ -141,10 +141,38 @@ const FinancialChart = ({ data: initialData, width, height, ratio, indicators, a
         {indicators?.macd && hasEnoughDataForMACD && (<Chart id={4} height={fHeight} yExtents={macdCalc.accessor()} origin={origin4} padding={{ top: 10, bottom: 10 }}><XAxis showGridLines showTickLabel={lastVisiblePanel === 'macd'} {...axisStyles} /><YAxis ticks={4} tickFormat={pricesDisplayFormat} {...axisStyles} /><MouseCoordinateY at="right" orient="right" displayFormat={pricesDisplayFormat} /><MACDSeries yAccessor={macdCalc.accessor()} {...macdCalc.options()} /><MACDTooltip origin={[8, 16]} yAccessor={macdCalc.accessor()} options={macdCalc.options()} appearance={macdAppearance} />{lastVisiblePanel === 'macd' && <MouseCoordinateX at="bottom" orient="bottom" displayFormat={timeFormat("%Y-%m-%d %H:%M")} />}</Chart>)}
         {indicators?.rsi && hasEnoughDataForRSI && (<Chart id={5} height={fHeight} yExtents={[0, 100]} origin={origin5} padding={{ top: 10, bottom: 10 }}><XAxis showGridLines showTickLabel={lastVisiblePanel === 'rsi'} {...axisStyles} /><YAxis ticks={4} tickValues={[30, 50, 70]} {...axisStyles} /><MouseCoordinateY at="right" orient="right" displayFormat={format(".2f")} /><RSISeries yAccessor={rsiCalc.accessor()} /><RSITooltip origin={[8, 16]} yAccessor={rsiCalc.accessor()} options={rsiCalc.options()} />{lastVisiblePanel === 'rsi' && <MouseCoordinateX at="bottom" orient="bottom" displayFormat={timeFormat("%Y-%m-%d %H:%M")} />}</Chart>)}
         <CrossHairCursor />
-        <ZoomButtons zoomMultiplier={1.1} zoomText="" textFill="#9EAAC7" />
+        {data.length > 2 && <ZoomButtons zoomMultiplier={1.1} zoomText="" textFill="#9EAAC7" />}
       </ChartCanvas>
     </div>
   );
 };
 
-export default withSize({ style: { minHeight: 600 } })(withDeviceRatio()(FinancialChart));
+const FinancialChartWithRatio = withDeviceRatio()(FinancialChart);
+
+const FinancialChartWrapper = (props: any) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 600 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        if (entry.contentRect.width > 0) {
+          setDimensions((prev) => ({ ...prev, width: entry.contentRect.width }));
+        }
+      }
+    });
+    resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} style={{ width: "100%", height: "100%", minHeight: "600px" }}>
+      {dimensions.width > 0 ? (
+        <FinancialChartWithRatio {...props} width={dimensions.width} height={600} />
+      ) : null}
+    </div>
+  );
+};
+
+export default FinancialChartWrapper;

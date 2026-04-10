@@ -24,6 +24,7 @@ import { useChartData } from "@/hooks/useChartData";
 import { useUser } from "@/context/UserContext";
 import { useAWSWebSocket } from "@/hooks/useDualPipe";
 import { DualPipeProvider } from "@/hooks/useDualPipe";
+import api from "@/lib/api";
 
 // Dynamically import FinancialChart (uses canvas/d3 which need browser APIs)
 const FinancialChart = dynamic(
@@ -196,17 +197,17 @@ function TradingPageContent() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const toggleIndicator = (key: string) => setIndicators((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleIndicator = (key: string) => setIndicators((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
 
   const queryClient = useQueryClient();
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-  const { user } = useUser();
+  const { user, tradingMode, activeChallengeId } = useUser();
   const userId = user?.id || "demo-user";
   const authToken = typeof window !== "undefined" ? localStorage.getItem("authToken") || "" : "";
 
-  const { data: account } = useAccount({ userId, datasetId, mode: "simulation", enabled: !!userId && !!datasetId });
-  const { data: orders = [] } = useOrders({ userId, datasetId, mode: "simulation", isActive: !paused && !!datasetId, enabled: !!userId && !!datasetId });
-  const { data: positions = [] } = usePositions({ userId, datasetId, mode: "simulation", isActive: !paused && !!datasetId, enabled: !!userId && !!datasetId });
+  const { data: account } = useAccount({ userId, datasetId, challengeId: activeChallengeId, mode: tradingMode, enabled: tradingMode === 'simulation' ? (!!userId && !!datasetId) : !!activeChallengeId });
+  const { data: orders = [] } = useOrders({ userId, datasetId, challengeId: activeChallengeId, mode: tradingMode, isActive: !paused && (tradingMode === 'simulation' ? !!datasetId : !!activeChallengeId), enabled: tradingMode === 'simulation' ? (!!userId && !!datasetId) : !!activeChallengeId });
+  const { data: positions = [] } = usePositions({ userId, datasetId, challengeId: activeChallengeId, mode: tradingMode, isActive: !paused && (tradingMode === 'simulation' ? !!datasetId : !!activeChallengeId), enabled: tradingMode === 'simulation' ? (!!userId && !!datasetId) : !!activeChallengeId });
   const cancelOrderMutation = useCancelOrder();
 
   const watchlistSymbols = [
@@ -217,37 +218,45 @@ function TradingPageContent() {
   ];
 
   useEffect(() => {
-    if (!API_BASE) return;
-    fetch(`${API_BASE}/sim/datasets`, { credentials: "include" })
-      .then((res) => res.json())
-      .then((data) => {
+    api.sim.getDatasets()
+      .then((data: any) => {
         if (data && data.length > 0) {
           const dsId = data[0].id;
           setDatasetId(dsId);
           const name = data[0].name || "";
-          const symbol = name.split("_")[0] || "EURUSD";
+          const symbol = name.split(/[\s_]/)[0] || "EURUSD";
           setDatasetSymbol(symbol);
-          fetch(`${API_BASE}/sim/stream/load`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ datasetId: dsId }) })
-            .then((r) => r.json())
-            .then((r) => console.log("📊 Sim dataset loaded:", r))
-            .catch((err) => console.error("Failed to load sim dataset:", err));
+          api.sim.loadDataset(dsId, userId)
+            .then((r: any) => console.log("📊 Sim dataset loaded:", r))
+            .catch((err: Error) => console.error("Failed to load sim dataset:", err));
         }
       })
-      .catch((err) => console.error("Failed to fetch datasets:", err));
-  }, [API_BASE]);
+      .catch((err: Error) => console.error("Failed to fetch datasets:", err));
+  }, []);
 
   const handleCancelOrder = async (orderId: string) => {
-    try { await cancelOrderMutation.mutateAsync({ orderId, userId, datasetId: datasetId || "", mode: "simulation" }); } catch (err) { console.error("Failed to cancel order:", err); }
+    try { await cancelOrderMutation.mutateAsync({ orderId, userId, datasetId: datasetId || "", challengeId: activeChallengeId || undefined, mode: tradingMode }); } catch (err) { console.error("Failed to cancel order:", err); }
   };
 
   const handleClosePosition = async (orderId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/sim/orders/${orderId}/close?userId=${userId}`, { method: "POST", credentials: "include" });
+      let res: Response;
+      if (tradingMode === 'challenge' && activeChallengeId) {
+        res = await fetch(`${API_BASE}/api/challenges/${activeChallengeId}/orders/${orderId}/close`, { method: "POST", credentials: "include" });
+      } else {
+        res = await fetch(`${API_BASE}/sim/orders/${orderId}/close?userId=${userId}`, { method: "POST", credentials: "include" });
+      }
       if (res.ok) {
         toast.success("Position closed");
-        queryClient.invalidateQueries({ queryKey: ["orders", userId, datasetId, "sim"] });
-        queryClient.invalidateQueries({ queryKey: ["positions", userId, datasetId, "sim"] });
-        queryClient.invalidateQueries({ queryKey: ["account", userId, datasetId, "sim"] });
+        if (tradingMode === 'challenge') {
+          queryClient.invalidateQueries({ queryKey: ["orders", activeChallengeId, "challenge"] });
+          queryClient.invalidateQueries({ queryKey: ["positions", activeChallengeId, "challenge"] });
+          queryClient.invalidateQueries({ queryKey: ["account", activeChallengeId, "challenge"] });
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["orders", userId, datasetId, "sim"] });
+          queryClient.invalidateQueries({ queryKey: ["positions", userId, datasetId, "sim"] });
+          queryClient.invalidateQueries({ queryKey: ["account", userId, datasetId, "sim"] });
+        }
       } else {
         const error = await res.json();
         toast.error(error.message || "Failed to close position");
@@ -299,7 +308,7 @@ function TradingPageContent() {
           <div className="h-5 w-px bg-[#2a2e39] mx-1" />
           <div className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2e39] rounded">
             <Wallet className="w-4 h-4 text-[#089981]" />
-            <div className="text-right"><div className="text-[10px] text-[#6a6d78]">Balance</div><div className="font-mono font-bold text-xs text-[#d1d4dc]">${account?.balance?.toLocaleString() || "100,000"}</div></div>
+            <div className="text-right"><div className="text-[10px] text-[#6a6d78]">Balance</div><div className="font-mono font-bold text-xs text-[#d1d4dc]">${((account as any)?.balance || (account as any)?.currentBalance)?.toLocaleString() || "100,000"}</div></div>
           </div>
           <button onClick={() => setPaused((p) => !p)} className={cn("flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition", paused ? "bg-[#089981]/20 text-[#089981]" : "bg-[#f23645]/20 text-[#f23645]")} aria-label={paused ? "Resume" : "Pause"}>
             {paused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}<span className="hidden sm:inline">{paused ? "RESUME" : "PAUSE"}</span>
@@ -365,18 +374,18 @@ function TradingPageContent() {
           {bottomPanelOpen && (
             <div className="h-48 bg-[#131722] border-t border-[#2a2e39] flex flex-col shrink-0">
               <div className="flex items-center border-b border-[#2a2e39]">
-                <TabButton active={activeTab === "orders"} onClick={() => setActiveTab("orders")} count={orders.length}><Clock className="w-4 h-4" />Orders</TabButton>
-                <TabButton active={activeTab === "positions"} onClick={() => setActiveTab("positions")} count={positions.length}><BarChart3 className="w-4 h-4" />Positions</TabButton>
+                <TabButton active={activeTab === "orders"} onClick={() => setActiveTab("orders")} count={(orders as any[])?.length || 0}><Clock className="w-4 h-4" />Orders</TabButton>
+                <TabButton active={activeTab === "positions"} onClick={() => setActiveTab("positions")} count={(positions as any[])?.length || 0}><BarChart3 className="w-4 h-4" />Positions</TabButton>
                 <TabButton active={activeTab === "history"} onClick={() => setActiveTab("history")}><History className="w-4 h-4" />History</TabButton>
                 <TabButton active={activeTab === "account"} onClick={() => setActiveTab("account")}><Wallet className="w-4 h-4" />Account</TabButton>
                 <button onClick={() => setBottomPanelOpen(false)} className="ml-auto p-2 text-[#6a6d78] hover:text-[#d1d4dc] hover:bg-[#2a2e39]"><ChevronDown className="w-4 h-4 rotate-180" /></button>
               </div>
               <div className="flex-1 overflow-auto p-4">
-                {activeTab === "orders" && (orders.length === 0 ? (
+                {activeTab === "orders" && ((orders as any[])?.length === 0 ? (
                   <div className="text-center text-[#6a6d78] py-8"><Clock className="w-8 h-8 mx-auto mb-2 opacity-50" /><p>No open orders</p><p className="text-sm mt-1">Place an order from the right panel</p></div>
                 ) : (
                   <table className="w-full text-sm"><thead className="text-[#6a6d78] border-b border-[#2a2e39]"><tr><th className="text-left py-2 font-medium">Time</th><th className="text-left py-2 font-medium">Symbol</th><th className="text-left py-2 font-medium">Type</th><th className="text-left py-2 font-medium">Side</th><th className="text-right py-2 font-medium">Price</th><th className="text-right py-2 font-medium">Size</th><th className="text-right py-2 font-medium">Status</th><th className="text-right py-2 font-medium">Actions</th></tr></thead><tbody>
-                    {orders.map((order: any, i: number) => (
+                    {(orders as any[]).map((order: any, i: number) => (
                       <tr key={order.id || i} className="border-b border-[#2a2e39] hover:bg-[#2a2e39]">
                         <td className="py-2 text-[#6a6d78]">{new Date(order.createdAt).toLocaleTimeString()}</td>
                         <td className="py-2 text-[#d1d4dc] font-medium">{order.symbol || datasetSymbol}</td>
@@ -389,18 +398,18 @@ function TradingPageContent() {
                       </tr>
                     ))}</tbody></table>
                 ))}
-                {activeTab === "positions" && (positions.length === 0 ? (
+                {activeTab === "positions" && ((positions as any[])?.length === 0 ? (
                   <div className="text-center text-[#6a6d78] py-8"><BarChart3 className="w-8 h-8 mx-auto mb-2 opacity-50" /><p>No open positions</p></div>
                 ) : (
                   <table className="w-full text-sm"><thead className="text-[#6a6d78] border-b border-[#2a2e39]"><tr><th className="text-left py-2 font-medium">Symbol</th><th className="text-left py-2 font-medium">Side</th><th className="text-right py-2 font-medium">Size</th><th className="text-right py-2 font-medium">Entry</th><th className="text-right py-2 font-medium">Current</th><th className="text-right py-2 font-medium">P&L</th><th className="text-right py-2 font-medium">Action</th></tr></thead><tbody>
-                    {positions.map((pos: any, i: number) => (
+                    {(positions as any[]).map((pos: any, i: number) => (
                       <tr key={i} className="border-b border-[#2a2e39] hover:bg-[#2a2e39]">
                         <td className="py-2 text-[#d1d4dc] font-medium">{pos.symbol}</td>
                         <td className={cn("py-2 font-medium", pos.side === "BUY" ? "text-[#089981]" : "text-[#f23645]")}>{pos.side}</td>
                         <td className="py-2 text-right font-mono">{pos.qty}</td>
-                        <td className="py-2 text-right font-mono">{pos.entryPrice?.toFixed(5)}</td>
+                        <td className="py-2 text-right font-mono">{Number(pos.entryPrice || 0).toFixed(5)}</td>
                         <td className="py-2 text-right font-mono"><LivePriceText symbol={datasetSymbol} decimalPlaces={5} /></td>
-                        <td className={cn("py-2 text-right font-mono font-medium", (pos.unrealizedPnl || 0) >= 0 ? "text-[#089981]" : "text-[#f23645]")}>{(pos.unrealizedPnl || 0) >= 0 ? "+" : ""}{pos.unrealizedPnl?.toFixed(2) || "0.00"}</td>
+                        <td className={cn("py-2 text-right font-mono font-medium", Number(pos.unrealizedPnl || 0) >= 0 ? "text-[#089981]" : "text-[#f23645]")}>{Number(pos.unrealizedPnl || 0) >= 0 ? "+" : ""}{Number(pos.unrealizedPnl || 0).toFixed(2)}</td>
                         <td className="py-2 text-right"><button onClick={() => handleClosePosition(pos.id)} className="px-2 py-1 hover:bg-[#f23645]/20 rounded text-[#f23645] text-xs font-medium border border-[#f23645]/30">Close</button></td>
                       </tr>
                     ))}</tbody></table>
@@ -408,10 +417,10 @@ function TradingPageContent() {
                 {activeTab === "history" && <div className="text-center text-[#6a6d78] py-8"><History className="w-8 h-8 mx-auto mb-2 opacity-50" /><p>No trade history</p></div>}
                 {activeTab === "account" && (
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="p-4 bg-[#2a2e39] rounded-lg"><div className="text-xs text-[#6a6d78] mb-1">Balance</div><div className="text-lg font-mono font-bold text-[#d1d4dc]">${account?.balance?.toLocaleString() || "100,000.00"}</div></div>
-                    <div className="p-4 bg-[#2a2e39] rounded-lg"><div className="text-xs text-[#6a6d78] mb-1">Equity</div><div className="text-lg font-mono font-bold text-[#089981]">${account?.equity?.toLocaleString() || "100,000.00"}</div></div>
-                    <div className="p-4 bg-[#2a2e39] rounded-lg"><div className="text-xs text-[#6a6d78] mb-1">Margin Used</div><div className="text-lg font-mono font-bold text-[#d1d4dc]">${account?.marginUsed?.toLocaleString() || "0.00"}</div></div>
-                    <div className="p-4 bg-[#2a2e39] rounded-lg"><div className="text-xs text-[#6a6d78] mb-1">Free Margin</div><div className="text-lg font-mono font-bold text-[#089981]">${account?.marginAvail?.toLocaleString() || "100,000.00"}</div></div>
+                    <div className="p-4 bg-[#2a2e39] rounded-lg"><div className="text-xs text-[#6a6d78] mb-1">Balance</div><div className="text-lg font-mono font-bold text-[#d1d4dc]">${((account as any)?.balance || (account as any)?.currentBalance)?.toLocaleString() || "100,000.00"}</div></div>
+                    <div className="p-4 bg-[#2a2e39] rounded-lg"><div className="text-xs text-[#6a6d78] mb-1">Equity</div><div className="text-lg font-mono font-bold text-[#089981]">${((account as any)?.equity || (account as any)?.currentBalance)?.toLocaleString() || "100,000.00"}</div></div>
+                    <div className="p-4 bg-[#2a2e39] rounded-lg"><div className="text-xs text-[#6a6d78] mb-1">Margin Used</div><div className="text-lg font-mono font-bold text-[#d1d4dc]">${(account as any)?.marginUsed?.toLocaleString() || "0.00"}</div></div>
+                    <div className="p-4 bg-[#2a2e39] rounded-lg"><div className="text-xs text-[#6a6d78] mb-1">Free Margin</div><div className="text-lg font-mono font-bold text-[#089981]">${((account as any)?.marginAvail || (account as any)?.currentBalance)?.toLocaleString() || "100,000.00"}</div></div>
                   </div>
                 )}
               </div>
@@ -423,13 +432,33 @@ function TradingPageContent() {
         {!isMobile && !rightPanelOpen && <button onClick={() => setRightPanelOpen(true)} className="w-8 bg-[#131722] border-l border-[#2a2e39] flex items-center justify-center hover:bg-[#2a2e39] transition"><ChevronLeft className="w-4 h-4 text-[#6a6d78]" /></button>}
         {!isMobile && rightPanelOpen && (
           <aside className="w-80 bg-[#131722] border-l border-[#2a2e39] flex flex-col shrink-0">
-            {datasetId && <OrderCard datasetId={datasetId} userId={userId} symbol={datasetSymbol} account={account} />}
+            {((tradingMode === 'simulation' && datasetId) || (tradingMode === 'challenge' && activeChallengeId)) && (
+              <OrderCard
+                datasetId={datasetId || undefined}
+                userId={userId}
+                symbol={datasetSymbol}
+                account={account}
+                mode={tradingMode}
+                challengeId={activeChallengeId || undefined}
+                onOrderPlaced={() => {
+                  if (tradingMode === 'challenge') {
+                    queryClient.invalidateQueries({ queryKey: ["orders", activeChallengeId, "challenge"] });
+                    queryClient.invalidateQueries({ queryKey: ["positions", activeChallengeId, "challenge"] });
+                    queryClient.invalidateQueries({ queryKey: ["account", activeChallengeId, "challenge"] });
+                  } else {
+                    queryClient.invalidateQueries({ queryKey: ["orders", userId, datasetId, "sim"] });
+                    queryClient.invalidateQueries({ queryKey: ["positions", userId, datasetId, "sim"] });
+                    queryClient.invalidateQueries({ queryKey: ["account", userId, datasetId, "sim"] });
+                  }
+                }}
+              />
+            )}
           </aside>
         )}
       </div>
 
       <SymbolSearchModal isOpen={showSymbolSearch} onClose={() => setShowSymbolSearch(false)} onSelect={(symbol) => setDatasetSymbol(symbol)} />
-      {isMobile && <MobileFloatingButtons onOpenWatchlist={() => setMobileWatchlistOpen(true)} onOpenOrderPanel={() => setMobileOrderPanelOpen(true)} onToggleBottomPanel={() => setBottomPanelOpen(!bottomPanelOpen)} bottomPanelOpen={bottomPanelOpen} ordersCount={orders.length} positionsCount={positions.length} />}
+      {isMobile && <MobileFloatingButtons onOpenWatchlist={() => setMobileWatchlistOpen(true)} onOpenOrderPanel={() => setMobileOrderPanelOpen(true)} onToggleBottomPanel={() => setBottomPanelOpen(!bottomPanelOpen)} bottomPanelOpen={bottomPanelOpen} ordersCount={(orders as any[])?.length || 0} positionsCount={(positions as any[])?.length || 0} />}
       <MobileBottomSheet isOpen={mobileWatchlistOpen} onClose={() => setMobileWatchlistOpen(false)} title="Watchlist" maxHeight="85vh"><MobileWatchlist watchlistSymbols={watchlistSymbols} datasetSymbol={datasetSymbol} onSelectSymbol={(symbol: string) => { setDatasetSymbol(symbol); setMobileWatchlistOpen(false); }} onShowSearch={() => { setMobileWatchlistOpen(false); setShowSymbolSearch(true); }} /></MobileBottomSheet>
       <MobileBottomSheet isOpen={mobileOrderPanelOpen} onClose={() => setMobileOrderPanelOpen(false)} title="New Order" maxHeight="90vh"><MobileOrderPanel datasetId={datasetId || undefined} userId={userId} API_BASE={API_BASE} authToken={authToken} symbol={datasetSymbol} account={account} onOrderPlaced={() => setMobileOrderPanelOpen(false)} onShowFullOrder={() => { setMobileOrderPanelOpen(false); setRightPanelOpen(true); }} /></MobileBottomSheet>
     </div>
