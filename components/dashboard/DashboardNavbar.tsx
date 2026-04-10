@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Zap, Menu, X, ArrowRight, BarChart3, TrendingUp, LayoutDashboard, History, ChevronRight, Coins } from "lucide-react";
+import { Zap, Menu, X, ArrowRight, BarChart3, TrendingUp, LayoutDashboard, History, ChevronRight, Coins, ChevronDown, Trophy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "@/context/UserContext";
-import { useCreditsBalance } from "@/hooks/useQueries";
+import { useCreditsBalance, useChallenges } from "@/hooks/useQueries";
 import { Button } from "@/components/ui/button";
 
 const dashboardNavLinks = [
@@ -19,10 +19,12 @@ const dashboardNavLinks = [
 export function DashboardNavbar({ isRefreshing }: { isRefreshing?: boolean }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { user, logout } = useUser();
+  const [modeDropdown, setModeDropdown] = useState(false);
+  const { user, logout, tradingMode, activeChallengeId, switchTradingMode } = useUser();
   const router = useRouter();
   const pathname = usePathname();
   const { data: creditsData } = useCreditsBalance({ userId: user?.id });
+  const { data: challenges } = useChallenges({ userId: user?.id }) as { data: any };
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -87,6 +89,60 @@ export function DashboardNavbar({ isRefreshing }: { isRefreshing?: boolean }) {
                 Live
               </span>
             )}
+
+            {/* Mode Switcher */}
+            <div className="relative">
+              <button
+                onClick={() => setModeDropdown(!modeDropdown)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+                  tradingMode === 'simulation'
+                    ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-400'
+                    : 'border-amber-500/50 bg-amber-500/15 text-amber-400'
+                }`}
+              >
+                {tradingMode === 'simulation' ? (
+                  <><Zap className="w-3.5 h-3.5" /> SIMULATOR</>
+                ) : (
+                  <><Trophy className="w-3.5 h-3.5" /> CHALLENGE</>
+                )}
+                <ChevronDown className="w-3 h-3" />
+              </button>
+
+              {modeDropdown && (
+                <div className="absolute right-0 mt-2 w-56 bg-background/95 backdrop-blur-xl border border-border/60 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+                  <button
+                    onClick={() => { switchTradingMode('simulation'); setModeDropdown(false); }}
+                    className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                      tradingMode === 'simulation' ? 'bg-emerald-500/10 text-emerald-400' : 'text-muted-foreground hover:bg-foreground/5'
+                    }`}
+                  >
+                    <Zap className="w-4 h-4" />
+                    Simulator
+                    {tradingMode === 'simulation' && <span className="ml-auto text-xs">●</span>}
+                  </button>
+                  <div className="h-px bg-border/30 mx-2" />
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider px-4 pt-2 pb-1">Challenges</p>
+                  {(!challenges || challenges.length === 0) ? (
+                    <p className="px-4 py-2 text-xs text-muted-foreground">No active challenges</p>
+                  ) : (
+                    (challenges as any[]).filter((c: any) => c.status !== 'FAILED').map((c: any) => (
+                      <button
+                        key={c.id}
+                        onClick={() => { switchTradingMode('challenge', c.id); setModeDropdown(false); }}
+                        className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
+                          tradingMode === 'challenge' && activeChallengeId === c.id ? 'bg-amber-500/10 text-amber-400' : 'text-muted-foreground hover:bg-foreground/5'
+                        }`}
+                      >
+                        <Trophy className="w-4 h-4" />
+                        <span className="truncate">{c.tier} — Phase {c.currentPhase?.replace('PHASE_', '') || '1'}</span>
+                        {tradingMode === 'challenge' && activeChallengeId === c.id && <span className="ml-auto text-xs">●</span>}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             <Button variant="ghost" size="sm" rounded="full" onClick={() => router.push("/dashboard/analytics")}>
               Analytics
             </Button>
@@ -166,6 +222,34 @@ export function DashboardNavbar({ isRefreshing }: { isRefreshing?: boolean }) {
               </div>
 
               <div className="px-6 py-4 border-t border-border/50 flex flex-col gap-3">
+                {/* Mobile Mode Switcher */}
+                <div className="flex items-center gap-2 mb-1">
+                  <button
+                    onClick={() => { switchTradingMode('simulation'); }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
+                      tradingMode === 'simulation'
+                        ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-400'
+                        : 'border-white/10 bg-white/5 text-white/50'
+                    }`}
+                  >
+                    <Zap className="w-4 h-4" /> Simulator
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (challenges && (challenges as any[]).length > 0) {
+                        const active = (challenges as any[]).find((c: any) => c.status !== 'FAILED');
+                        if (active) switchTradingMode('challenge', active.id);
+                      }
+                    }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
+                      tradingMode === 'challenge'
+                        ? 'border-amber-500/50 bg-amber-500/15 text-amber-400'
+                        : 'border-white/10 bg-white/5 text-white/50'
+                    }`}
+                  >
+                    <Trophy className="w-4 h-4" /> Challenge
+                  </button>
+                </div>
                 <Button variant="ghost" rounded="lg" className="py-6 text-base w-full justify-center" onClick={() => { router.push("/dashboard/analytics"); setMobileMenuOpen(false); }}>
                   Analytics
                 </Button>
@@ -183,7 +267,7 @@ export function DashboardNavbar({ isRefreshing }: { isRefreshing?: boolean }) {
                   Log out
                 </Button>
                 <Button rounded="full" className="py-6 text-base w-full" onClick={() => { router.push("/simulation"); setMobileMenuOpen(false); }}>
-                  Simulation Trading
+                  {tradingMode === 'simulation' ? 'Simulation Trading' : 'Challenge Trading'}
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </div>

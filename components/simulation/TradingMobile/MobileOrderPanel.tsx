@@ -30,7 +30,7 @@ export default function MobileOrderPanel({
       const res = await fetch(`${API_BASE}/sim/orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ datasetId, userId, side, type: "MARKET", qty: quantity, symbol }),
+        body: JSON.stringify({ datasetId, userId, side, type: "MARKET", qty: quantity }),
       });
       if (!res.ok) return;
       setShowConfirm(null);

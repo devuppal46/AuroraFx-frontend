@@ -140,9 +140,10 @@ export default function TradeHistoryPage() {
     enabled: !!user?.id && !!authToken && !!datasetId,
   });
 
-  const trades: any[] = data?.trades || [];
-  const analytics: any = data?.analytics;
-  const dataset: any = data?.dataset;
+  const resp = data as any;
+  const trades: any[] = resp?.trades || [];
+  const analytics: any = resp?.analytics;
+  const dataset: any = resp?.dataset;
 
   const totalPages = Math.max(1, Math.ceil(trades.length / PAGE_SIZE));
   const pagedTrades = trades.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);

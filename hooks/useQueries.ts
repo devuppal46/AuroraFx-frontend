@@ -5,27 +5,16 @@
  * 
  * Centralized data fetching hooks with caching, auto-revalidation,
  * and optimistic updates for trading data.
+ * Supports both Simulation and Challenge trading modes.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import api from '../lib/api';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
-
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-const getHeaders = () => {
-  if (typeof window === 'undefined') return { 'Content-Type': 'application/json' };
-  
-  const token = localStorage.getItem('authToken');
-  return {
-    'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
-  };
-};
 
 const handleQueryError = (error: any, context: string) => {
   console.error(`[Query Error] ${context}:`, error);
@@ -36,10 +25,6 @@ const handleQueryError = (error: any, context: string) => {
 // Account Queries
 // ============================================================================
 
-const fetchSimAccount = async ({ userId, datasetId }: { userId: string; datasetId: string }) => {
-  return api.sim.getAccount(datasetId, userId);
-};
-
 export const useAccount = ({
   userId,
   datasetId,
@@ -47,15 +32,20 @@ export const useAccount = ({
   mode = 'simulation',
   ...options
 }: any = {}) => {
-  const isEnabled = !!userId && (mode === 'simulation' ? !!datasetId : true);
+  const isEnabled = mode === 'simulation'
+    ? !!userId && !!datasetId
+    : !!challengeId;
 
   const queryKey = mode === 'simulation'
     ? ['account', userId, datasetId, 'sim']
-    : ['account', userId, challengeId, 'live'];
+    : ['account', challengeId, 'challenge'];
 
   return useQuery({
     queryKey,
-    queryFn: () => fetchSimAccount({ userId, datasetId }),
+    queryFn: () =>
+      mode === 'simulation'
+        ? api.sim.getAccount(datasetId, userId)
+        : api.challenges.getOne(challengeId),
     enabled: isEnabled,
     staleTime: 30 * 1000,
     ...options,
@@ -66,26 +56,28 @@ export const useAccount = ({
 // Orders Queries
 // ============================================================================
 
-const fetchOrders = async ({ userId, datasetId }: { userId: string; datasetId: string }) => {
-  return api.sim.getOrders(datasetId, userId);
-};
-
 export const useOrders = ({
   userId,
   datasetId,
+  challengeId,
   mode = 'simulation',
   isActive = true,
   ...options
 }: any = {}) => {
-  const isEnabled = !!userId && !!datasetId && isActive;
+  const isEnabled = mode === 'simulation'
+    ? !!userId && !!datasetId && isActive
+    : !!challengeId && isActive;
 
   const queryKey = mode === 'simulation'
     ? ['orders', userId, datasetId, 'sim']
-    : ['orders', userId, datasetId, 'live'];
+    : ['orders', challengeId, 'challenge'];
 
   return useQuery({
     queryKey,
-    queryFn: () => fetchOrders({ userId, datasetId }),
+    queryFn: () =>
+      mode === 'simulation'
+        ? api.sim.getOrders(datasetId, userId)
+        : api.challenges.getOrders(challengeId),
     enabled: isEnabled,
     refetchInterval: isActive ? 5000 : false,
     refetchIntervalInBackground: false,
@@ -99,25 +91,32 @@ export const useOrders = ({
 // Positions Queries
 // ============================================================================
 
-const fetchPositions = async ({ userId, datasetId }: { userId: string; datasetId: string }) => {
-  const orders = await fetchOrders({ userId, datasetId });
-  return (orders || []).filter((order: any) =>
-    order.status === 'FILLED' && !order.closedAt
-  );
-};
-
 export const usePositions = (params: any = {}) => {
-  const { userId, datasetId, mode = 'simulation', isActive = true, ...options } = params;
+  const { userId, datasetId, challengeId, mode = 'simulation', isActive = true, ...options } = params;
 
-  const isEnabled = !!userId && !!datasetId && isActive;
+  const isEnabled = mode === 'simulation'
+    ? !!userId && !!datasetId && isActive
+    : !!challengeId && isActive;
 
   const queryKey = mode === 'simulation'
     ? ['positions', userId, datasetId, 'sim']
-    : ['positions', userId, datasetId, 'live'];
+    : ['positions', challengeId, 'challenge'];
 
   return useQuery({
     queryKey,
-    queryFn: () => fetchPositions({ userId, datasetId }),
+    queryFn: async () => {
+      if (mode === 'simulation') {
+        const orders = await api.sim.getOrders(datasetId, userId);
+        return (orders || []).filter((order: any) =>
+          order.status === 'FILLED' && !order.closedAt
+        );
+      } else {
+        const trades = await api.challenges.getOrders(challengeId);
+        return (trades || []).filter((trade: any) =>
+          trade.status === 'FILLED' && !trade.closedAt
+        );
+      }
+    },
     enabled: isEnabled,
     refetchInterval: isActive ? 5000 : false,
     refetchIntervalInBackground: false,
@@ -128,40 +127,44 @@ export const usePositions = (params: any = {}) => {
 };
 
 // ============================================================================
-// Dashboard Data Queries
+// Challenges Queries
 // ============================================================================
 
-const fetchDashboardData = async ({ userId, datasetId }: { userId: string; datasetId: string }) => {
-  if (!userId || !datasetId) throw new Error('Missing userId or datasetId');
-
-  const res = await fetch(
-    `${API_BASE}/dashboard/sim?userId=${userId}&datasetId=${datasetId}&txLimit=20`,
-    { headers: getHeaders() }
-  );
-
-  if (!res.ok) {
-    const error = await res.text();
-    throw new Error(error || `HTTP ${res.status}`);
-  }
-
-  return res.json();
+export const useChallenges = ({ userId, ...options }: any = {}) => {
+  return useQuery({
+    queryKey: ['challenges', userId],
+    queryFn: () => api.challenges.getAll(userId),
+    enabled: !!userId,
+    staleTime: 30 * 1000,
+    ...options,
+  });
 };
+
+export const useChallengeMetrics = ({ challengeId, ...options }: any = {}) => {
+  return useQuery({
+    queryKey: ['challenge', challengeId, 'metrics'],
+    queryFn: () => api.challenges.getOne(challengeId),
+    enabled: !!challengeId,
+    staleTime: 10 * 1000,
+    ...options,
+  });
+};
+
+// ============================================================================
+// Dashboard Data Queries
+// ============================================================================
 
 export const useDashboard = ({ userId, datasetId, ...options }: any = {}) => {
   const isEnabled = !!userId && !!datasetId;
 
   return useQuery({
     queryKey: ['dashboard', userId, datasetId],
-    queryFn: () => fetchDashboardData({ userId, datasetId }),
+    queryFn: () => api.dashboard.getSimData(userId, datasetId),
     enabled: isEnabled,
     staleTime: 30 * 1000,
     ...options,
   });
 };
-
-// ============================================================================
-// Mutation Hooks
-// ============================================================================
 
 // ============================================================================
 // Credits Queries
@@ -231,20 +234,42 @@ export const useCancelOrder = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ orderId, userId, mode }: { orderId: string; userId: string; mode?: string; datasetId?: string }) => {
-      const url = `${API_BASE}/sim/orders/${orderId}/cancel?userId=${userId}`;
-      const res = await fetch(url, { method: 'PATCH', headers: getHeaders() });
-      if (!res.ok) {
-        const error = await res.text();
-        throw new Error(error || `HTTP ${res.status}`);
+    mutationFn: async ({ orderId, userId, datasetId, challengeId, mode = 'simulation' }: {
+      orderId: string; userId: string; datasetId?: string; challengeId?: string; mode?: string;
+    }) => {
+      if (mode === 'challenge' && challengeId) {
+        return api.challenges.cancelOrder(challengeId, orderId);
       }
-      return res.json();
+      return api.sim.cancelOrder(orderId);
     },
     onSuccess: () => { toast.success('Order cancelled'); },
     onError: (error: any) => { toast.error(error.message || 'Failed to cancel order'); },
     onSettled: (_data, _error, variables) => {
-      const { userId, datasetId } = variables as any;
-      queryClient.invalidateQueries({ queryKey: ['orders', userId, datasetId, 'sim'] });
+      const { userId, datasetId, challengeId, mode } = variables as any;
+      if (mode === 'challenge' && challengeId) {
+        queryClient.invalidateQueries({ queryKey: ['orders', challengeId, 'challenge'] });
+        queryClient.invalidateQueries({ queryKey: ['account', challengeId, 'challenge'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['orders', userId, datasetId, 'sim'] });
+      }
+    },
+  });
+};
+
+export const useChallengeOrder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ challengeId, data }: { challengeId: string; data: any }) => {
+      return api.challenges.createOrder(challengeId, data);
+    },
+    onSuccess: (_data, variables) => {
+      toast.success('Challenge order placed');
+      queryClient.invalidateQueries({ queryKey: ['orders', variables.challengeId, 'challenge'] });
+      queryClient.invalidateQueries({ queryKey: ['account', variables.challengeId, 'challenge'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to place challenge order');
     },
   });
 };
@@ -252,34 +277,6 @@ export const useCancelOrder = () => {
 // ============================================================================
 // Trade History Query
 // ============================================================================
-
-const fetchTradeHistory = async ({
-  userId,
-  datasetId,
-  side,
-  from,
-  to,
-}: {
-  userId: string;
-  datasetId: string;
-  side?: string;
-  from?: string;
-  to?: string;
-}) => {
-  if (!userId || !datasetId) throw new Error('Missing userId or datasetId');
-  const params = new URLSearchParams({ userId, datasetId });
-  if (side && side !== 'ALL') params.set('side', side);
-  if (from) params.set('from', from);
-  if (to) params.set('to', to);
-  const res = await fetch(`${API_BASE}/dashboard/history?${params.toString()}`, {
-    headers: getHeaders(),
-  });
-  if (!res.ok) {
-    const error = await res.text();
-    throw new Error(error || `HTTP ${res.status}`);
-  }
-  return res.json();
-};
 
 export const useTradeHistory = ({
   userId,
@@ -291,7 +288,13 @@ export const useTradeHistory = ({
 }: any = {}) => {
   return useQuery({
     queryKey: ['tradeHistory', userId, datasetId, side, from, to],
-    queryFn: () => fetchTradeHistory({ userId, datasetId, side, from, to }),
+    queryFn: () => {
+      const params: any = {};
+      if (side && side !== 'ALL') params.side = side;
+      if (from) params.from = from;
+      if (to) params.to = to;
+      return api.dashboard.getHistory(userId, datasetId, params);
+    },
     enabled: !!userId && !!datasetId,
     staleTime: 30 * 1000,
     ...options,

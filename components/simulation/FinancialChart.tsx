@@ -1,5 +1,5 @@
-"use client";
 // @ts-nocheck
+"use client";
 import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { format } from "d3-format";
 import { timeFormat } from "d3-time-format";
@@ -141,7 +141,7 @@ const FinancialChart = ({ data: initialData, width, height, ratio, indicators, a
         {indicators?.macd && hasEnoughDataForMACD && (<Chart id={4} height={fHeight} yExtents={macdCalc.accessor()} origin={origin4} padding={{ top: 10, bottom: 10 }}><XAxis showGridLines showTickLabel={lastVisiblePanel === 'macd'} {...axisStyles} /><YAxis ticks={4} tickFormat={pricesDisplayFormat} {...axisStyles} /><MouseCoordinateY at="right" orient="right" displayFormat={pricesDisplayFormat} /><MACDSeries yAccessor={macdCalc.accessor()} {...macdCalc.options()} /><MACDTooltip origin={[8, 16]} yAccessor={macdCalc.accessor()} options={macdCalc.options()} appearance={macdAppearance} />{lastVisiblePanel === 'macd' && <MouseCoordinateX at="bottom" orient="bottom" displayFormat={timeFormat("%Y-%m-%d %H:%M")} />}</Chart>)}
         {indicators?.rsi && hasEnoughDataForRSI && (<Chart id={5} height={fHeight} yExtents={[0, 100]} origin={origin5} padding={{ top: 10, bottom: 10 }}><XAxis showGridLines showTickLabel={lastVisiblePanel === 'rsi'} {...axisStyles} /><YAxis ticks={4} tickValues={[30, 50, 70]} {...axisStyles} /><MouseCoordinateY at="right" orient="right" displayFormat={format(".2f")} /><RSISeries yAccessor={rsiCalc.accessor()} /><RSITooltip origin={[8, 16]} yAccessor={rsiCalc.accessor()} options={rsiCalc.options()} />{lastVisiblePanel === 'rsi' && <MouseCoordinateX at="bottom" orient="bottom" displayFormat={timeFormat("%Y-%m-%d %H:%M")} />}</Chart>)}
         <CrossHairCursor />
-        <ZoomButtons zoomMultiplier={1.1} zoomText="" textFill="#9EAAC7" />
+        {data.length > 2 && <ZoomButtons zoomMultiplier={1.1} zoomText="" textFill="#9EAAC7" />}
       </ChartCanvas>
     </div>
   );

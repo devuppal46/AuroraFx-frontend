@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/context/UserContext";
 import { useQueryClient } from "@tanstack/react-query";
-import { useDashboard } from "@/hooks/useQueries";
+import { useDashboard, useChallenges } from "@/hooks/useQueries";
 import api from "@/lib/api";
 
 import DashboardSkeleton from "@/components/dashboard/DashboardSkeleton";
@@ -36,7 +36,7 @@ function Section({
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const { user, isLoading: isUserLoading } = useUser();
+  const { user, isLoading: isUserLoading, tradingMode, switchTradingMode } = useUser();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -74,6 +74,9 @@ export default function DashboardPage() {
     datasetId,
     enabled: !!user?.id && !!authToken && !!datasetId,
   });
+
+  // Fetch user challenges
+  const { data: challenges = [] } = useChallenges({ userId: user?.id, enabled: !!user?.id });
 
   const dataset      = (dashboardData as any)?.dataset;
   const summary      = (dashboardData as any)?.summary;
@@ -124,8 +127,12 @@ export default function DashboardPage() {
             <span className="hidden sm:inline text-white/40 text-sm">
               {user?.email?.split("@")[0]}
             </span>
-            <span className="px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold tracking-wide">
-              Simulation
+            <span className={`px-3 py-1 rounded-full border text-xs font-semibold tracking-wide ${
+              tradingMode === 'simulation'
+                ? 'border-primary/30 bg-primary/10 text-primary'
+                : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+            }`}>
+              {tradingMode === 'simulation' ? 'Simulation' : 'Challenge'}
             </span>
           </div>
         </div>
@@ -191,7 +198,95 @@ export default function DashboardPage() {
               <HoldingTable holdings={holdings} />
             </Section>
 
-            {/* ── 5. Transactions ──────────────────────────────────────── */}
+            {/* ── 5. Challenge Accounts ───────────────────────────────── */}
+            {(challenges as any[]).length > 0 && (
+              <Section id="challenges">
+                <SectionHeading
+                  eyebrow="Prop Trading"
+                  title="Challenge Accounts"
+                  subtitle="Your active evaluation challenges and their progress."
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(challenges as any[]).map((c: any) => {
+                    const isFailed = c.status === 'FAILED';
+                    const isActive = c.status === 'ACTIVE' || c.status === 'PHASE_1_PASS' || c.status === 'PHASE_2_PASS';
+                    const phase = c.currentPhase?.replace('PHASE_', 'Phase ') || 'Phase 1';
+                    const balanceNum = Number(c.currentBalance || 0);
+                    const startNum = Number(c.startingBalance || 100000);
+                    const pnl = balanceNum - startNum;
+                    const pnlPct = startNum > 0 ? (pnl / startNum * 100) : 0;
+
+                    return (
+                      <div
+                        key={c.id}
+                        className={`relative rounded-2xl border p-5 transition-all ${
+                          isFailed
+                            ? 'border-red-500/20 bg-red-500/5 opacity-60'
+                            : 'border-white/10 bg-white/5 hover:border-amber-500/30 hover:bg-amber-500/5 cursor-pointer'
+                        }`}
+                        onClick={() => {
+                          if (!isFailed) {
+                            switchTradingMode('challenge', c.id);
+                            router.push('/simulation');
+                          }
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              c.tier === 'PRO' ? 'bg-purple-500/20 text-purple-400'
+                              : c.tier === 'PREMIUM' ? 'bg-amber-500/20 text-amber-400'
+                              : 'bg-blue-500/20 text-blue-400'
+                            }`}>
+                              {c.tier}
+                            </span>
+                            <span className="text-sm text-white/70 font-medium">{phase}</span>
+                          </div>
+                          <span className={`text-[10px] font-semibold uppercase ${
+                            isFailed ? 'text-red-400' : isActive ? 'text-emerald-400' : 'text-amber-400'
+                          }`}>
+                            {c.status?.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+
+                        <div className="mb-3">
+                          <div className="text-xs text-white/40 mb-0.5">Balance</div>
+                          <div className="text-xl font-mono font-bold text-white/90">
+                            ${balanceNum.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </div>
+                          <div className={`text-xs font-mono font-medium ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)} ({pnlPct.toFixed(2)}%)
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="bg-white/5 rounded-lg py-2">
+                            <div className="text-[10px] text-white/40">Daily DD</div>
+                            <div className="text-xs font-mono text-white/70">{Number(c.maxDailyDDPct).toFixed(1)}%</div>
+                          </div>
+                          <div className="bg-white/5 rounded-lg py-2">
+                            <div className="text-[10px] text-white/40">Total DD</div>
+                            <div className="text-xs font-mono text-white/70">{Number(c.maxTotalDDPct).toFixed(1)}%</div>
+                          </div>
+                          <div className="bg-white/5 rounded-lg py-2">
+                            <div className="text-[10px] text-white/40">Target</div>
+                            <div className="text-xs font-mono text-white/70">
+                              {Number(c.currentPhase === 'PHASE_1' ? c.phase1TargetPct : c.phase2TargetPct).toFixed(1)}%
+                            </div>
+                          </div>
+                        </div>
+
+                        {isFailed && c.failureReason && (
+                          <p className="mt-2 text-xs text-red-400/70">{c.failureReason}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </Section>
+            )}
+
+            {/* ── 6. Transactions ──────────────────────────────────────── */}
             <Section id="transactions">
               <SectionHeading
                 eyebrow="History"
@@ -209,9 +304,13 @@ export default function DashboardPage() {
               <button
                 onClick={() => router.push("/simulation")}
                 onMouseEnter={prefetchTrading}
-                className="inline-flex items-center gap-2 py-2.5 px-7 rounded-full bg-primary text-black font-semibold text-sm shadow-lg hover:opacity-90 active:scale-95 transition-all"
+                className={`inline-flex items-center gap-2 py-2.5 px-7 rounded-full font-semibold text-sm shadow-lg hover:opacity-90 active:scale-95 transition-all ${
+                  tradingMode === 'challenge'
+                    ? 'bg-amber-500 text-black'
+                    : 'bg-primary text-black'
+                }`}
               >
-                Open Simulation Trading
+                {tradingMode === 'simulation' ? 'Open Simulation Trading' : 'Open Challenge Trading'}
               </button>
             </div>
 
